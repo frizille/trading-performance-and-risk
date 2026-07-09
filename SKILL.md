@@ -1,6 +1,6 @@
 ---
 name: portfolio-risk-metrics
-description: Compute and interpret portfolio risk and performance metrics — time-weighted return, volatility, Sharpe, Sortino, Calmar, maximum drawdown, win rate, profit factor, expectancy, reward-to-risk, and position concentration — from a brokerage data source and a trade log, then grade each result as good, medium, or poor. Use this skill whenever the user wants to measure, interpret, or benchmark trading or investment performance and risk — for example asking how risky a portfolio is, what their Sharpe or drawdown or win rate is, to grade a track record, to analyze a trade log, or whether they are in the right risk zone — even if no specific metric is named. Always run the Configuration steps first (connect the data source and obtain the trade log) before computing anything.
+description: Measure, interpret, and benchmark trading and portfolio risk and performance, and plan the risk of a prospective trade. Computes time-weighted return, volatility, Sharpe, Sortino, Calmar, max drawdown, win rate, profit factor, expectancy, reward-to-risk, and concentration from a brokerage data source and a trade log, and grades each good, medium, or poor. Use whenever the user wants to gauge how risky a portfolio is, find a Sharpe or drawdown or win rate, grade a track record, analyze a trade log, or ask if they are in the right risk zone. Also triggers on plan-trade (for example plan-trade NBIS $240 CC exp 7/17) or any request to size or check a single trade before placing it — in that mode first ask the strategy (covered call, cash-secured put, long call, long put, buy-and-hold, swing trade, or 0DTE), then gather the strategy-specific inputs before computing. For portfolio metrics, run the Configuration steps (connect the data source, obtain the trade log) first.
 ---
 
 # Portfolio Risk & Performance Metrics
@@ -55,6 +55,20 @@ Only after both are settled, proceed to the workflow.
 
 ---
 
+## Pre-trade planning (`plan-trade`)
+
+When the user types **`plan-trade`** (e.g. `plan-trade NBIS $240 CC exp 7/17`), switch to single-trade planning. This is forward-looking sizing, not a recommendation, and it runs independently of the two panels above.
+
+1. **Parse** the ticker, strike(s), expiry, and strategy from the command.
+2. **Confirm the strategy.** If it is not given or is ambiguous, ask the user to pick one: covered call (CC), cash-secured put (CSP), long call (LC), long put (LP), buy-and-hold, swing trade, or 0DTE.
+3. **Gather the strategy-specific inputs** — only what was not already provided. The required inputs and the risk formula for each strategy are in `references/plan-trade.md`. Ask for the missing pieces before computing; do not guess.
+4. **Establish account context** — total account value and current exposure to this underlying. Pull from the connected data source if available; otherwise ask.
+5. **Compute and grade** — defined risk (R), breakeven, maximum profit, reward-to-risk, R as a percent of the account (against the 0.5–2% rule), capital / buying power required, and resulting concentration. Flag undefined-risk structures, a missing stop, a concentration-limit breach, or an earnings date before expiry.
+
+Use the output template in `references/plan-trade.md`, and always close by stating this sizes the risk — it does not judge whether the trade is a good idea.
+
+---
+
 ## Locked conventions (override only on user request)
 
 - **Return:** daily time-weighted (TWR); report both the period figure and, cautiously, an annualized one.
@@ -101,4 +115,5 @@ Keep the tone factual. State assumptions and any data-quality issues plainly rat
 
 - `references/metric-definitions.md` — every metric: plain meaning, formula, and good / medium / poor bands, with an illustrative strong-track-record benchmark. Read this to grade results and explain them.
 - `references/computation-notes.md` — data sourcing (SnapTrade fields and the manual-file schemas), the time-weighted-return and cash-flow method, the trade-log schema, risk-unit (R) definitions by trade type, the share-position risk lenses, and common data-hygiene traps. Read this before ingesting data.
+- `references/plan-trade.md` — the `plan-trade` command: how to parse it, the strategy menu, the exact inputs and defined-risk (R) formula for each strategy (CC, CSP, LC, LP, buy-and-hold, swing trade, 0DTE), and the output template. Read this whenever planning a single prospective trade.
 - `scripts/risk_metrics.py` — dependency-free (Python standard library only) calculator with two subcommands, `nav` and `trades`. Run `python scripts/risk_metrics.py --help`.
